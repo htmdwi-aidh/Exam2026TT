@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Madrasah Exam Timetable 2026</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&display=swap" rel="stylesheet"/>
+<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:#EEF2F7;font-family:'Plus Jakarta Sans',sans-serif;min-height:100vh;padding:12px}
+  @media print{
+    @page{size:A4 portrait;margin:10mm 14mm}
+    html,body{background:white!important;padding:0!important}
+    .no-print{display:none!important}
+    .print-target{background:white!important}
+  }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const {useState,useMemo,useRef,useCallback,useEffect}=React;
+const F="'Plus Jakarta Sans','Segoe UI',system-ui,sans-serif";
+const MONTH_NAMES=["","January","February","March","April","May","June","July","August","September","October","November","December"];
+const DAY_FULL={Mon:"Monday",Tue:"Tuesday",Wed:"Wednesday",Thu:"Thursday",Fri:"Friday",Sat:"Saturday",Sun:"Sunday"};
+function ord(n){const s=["th","st","nd","rd"];const v=n%100;return n+(s[(v-20)%10]||s[v]||s[0]);}
+function fmtDate(ds,dy){
+  if(!ds||ds.includes("–"))return ds;
+  const[dd,mm]=ds.split("/").map(Number);
+  return `${DAY_FULL[dy]||dy} ${ord(dd)} ${MONTH_NAMES[mm]}`;
+}
+function downloadHTML(html,filename){
+  const blob=new Blob([html],{type:"text/html;charset=utf-8"});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement("a");
+  a.href=url;a.download=filename;a.style.display="none";
+  document.body.appendChild(a);a.click();
+  setTimeout(()=>{if(a.parentNode)a.parentNode.removeChild(a);URL.revokeObjectURL(url);},1500);
+}
+const ALL_CLASSES=["Reception","Class 1","Class 2","Class 3","Class 4","Class 5","Class 6","Class 7","Class 8"];
+const CLASS_ICONS=["🌱","1️⃣","2️⃣","3️⃣","4️⃣","5️⃣","6️⃣","7️⃣","8️⃣"];
+const SUBGROUPS=[
+  {id:"rec-b",classIdx:0,label:"Reception Boys",gender:"boys"},
+  {id:"rec-g",classIdx:0,label:"Reception Girls",gender:"girls"},
+  {id:"c1-b",classIdx:1,label:"Class 1 Boys",gender:"boys"},
+  {id:"c1-ga",classIdx:1,label:"Class 1A Girls",gender:"girls"},
+  {id:"c1-gb",classIdx:1,label:"Class 1B/C Girls",gender:"girls"},
+  {id:"c2-b",classIdx:2,label:"Class 2 Boys",gender:"boys"},
+  {id:"c2-ba",classIdx:2,label:"Class 2 Boys Āpā",gender:"boys"},
+  {id:"c2-g",classIdx:2,label:"Class 2 Girls",gender:"girls"},
+  {id:"c3-b",classIdx:3,label:"Class 3 Boys",gender:"boys"},
+  {id:"c3-g",classIdx:3,label:"Class 3 Girls",gender:"girls"},
+  {id:"c4-b",classIdx:4,label:"Class 4 Boys",gender:"boys"},
+  {id:"c4-ga",classIdx:4,label:"Class 4A Girls",gender:"girls"},
+  {id:"c4-gb",classIdx:4,label:"Class 4B Girls",gender:"girls"},
+  {id:"c5-b",classIdx:5,label:"Class 5 Boys",gender:"boys"},
+  {id:"c5-g",classIdx:5,label:"Class 5 Girls",gender:"girls"},
+  {id:"c6-b",classIdx:6,label:"Class 6 Boys",gender:"boys"},
+  {id:"c6-g",classIdx:6,label:"Class 6 Girls",gender:"girls"},
+  {id:"c7-b",classIdx:7,label:"Class 7 Boys",gender:"boys"},
+  {id:"c7-ga",classIdx:7,label:"Class 7A Girls",gender:"girls"},
+  {id:"c7-gb",classIdx:7,label:"Class 7B Girls",gender:"girls"},
+  {id:"c8-b",classIdx:8,label:"Class 8 Boys",gender:"boys"},
+  {id:"c8-g",classIdx:8,label:"Class 8 Girls",gender:"girls"},
+];
+const SG_BY_CLASS=ALL_CLASSES.map((_,i)=>SUBGROUPS.filter(s=>s.classIdx===i));
+const QURAN_SG={
+  "c2-b":{date:"01/06",day:"Mon",subj:"Juz ʿAmma"},
+  "c2-ba":{date:"02/06",day:"Tue",subj:"Juz ʿAmma"},
+  "c2-g":{date:"01/06",day:"Mon",subj:"Juz ʿAmma"},
+  "c3-b":{date:"03/06",day:"Wed",subj:"Qurʾān"},
+  "c3-g":{date:"02/06",day:"Tue",subj:"Qurʾān"},
+  "c4-b":{date:"04/06",day:"Thu",subj:"Qurʾān"},
+  "c4-ga":{date:"03/06",day:"Wed",subj:"Qurʾān"},
+  "c4-gb":{date:"04/06",day:"Thu",subj:"Qurʾān"},
+  "c5-b":{date:"05/06",day:"Fri",subj:"Qurʾān"},
+  "c5-g":{date:"05/06",day:"Fri",subj:"Qurʾān"},
+  "c6-b":{date:"08/06",day:"Mon",subj:"Qurʾān"},
+  "c6-g":{date:"08/06",day:"Mon",subj:"Qurʾān"},
+  "c7-b":{date:"09/06",day:"Tue",subj:"Qurʾān"},
+  "c7-ga":{date:"09/06",day:"Tue",subj:"Qurʾān"},
+  "c7-gb":{date:"10/06",day:"Wed",subj:"Qurʾān"},
+  "c8-b":{date:"10/06",day:"Wed",subj:"Qurʾān"},
+  "c8-g":{date:"11/06",day:"Thu",subj:"Qurʾān"},
+};
+const IS_EXAMS=[
+  {date:"12/06",day:"Fri",label:"Seerah",subj:"seerah",range:"4–8"},
+  {date:"12/06",day:"Fri",label:"Islamic History",subj:"history",range:"1–3"},
+  {date:"15/06",day:"Mon",label:"Fiqh",subj:"fiqh",range:"1–8"},
+  {date:"17/06",day:"Wed",label:"Ādāb",subj:"adab",range:"4–8"},
+  {date:"17/06",day:"Wed",label:"Akhlāq",subj:"akhlaq",range:"1–3"},
+  {date:"22/06",day:"Mon",label:"ʿAqāʾid",subj:"aqaid",range:"1–8"},
+];
+const SUBJ_COL={
+  seerah:{bg:"#FFEDD5",text:"#9A3412",bd:"#F97316"},
+  history:{bg:"#FEF3C7",text:"#92400E",bd:"#F59E0B"},
+  fiqh:{bg:"#EDE9FE",text:"#4338CA",bd:"#7C3AED"},
+  adab:{bg:"#FCE7F3",text:"#9D174D",bd:"#EC4899"},
+  akhlaq:{bg:"#FDE68A",text:"#78350F",bd:"#D97706"},
+  aqaid:{bg:"#CFFAFE",text:"#155E75",bd:"#06B6D4"},
+};
+const CAT={
+  qrev:{ic:"📖",ti:"Qurʾān Revision Window",q:"When does revision start for my class?",bd:"#E97A0B",bg:"#FFF7ED",c:"#C2410C"},
+  quran:{ic:"📗",ti:"Qurʾān / Juz ʿAmma Exam",q:"When is my child's recitation exam?",bd:"#059669",bg:"#ECFDF5",c:"#065F46"},
+  qaidah:{ic:"📗",ti:"Qāʿidah Exam",q:"When is my child's Qāʿidah exam?",bd:"#059669",bg:"#ECFDF5",c:"#065F46"},
+  surah:{ic:"🕌",ti:"Sūrah Memorisation",q:"When is my child's Sūrah exam?",bd:"#6D28D9",bg:"#F5F3FF",c:"#4C1D95"},
+  isrev:{ic:"📝",ti:"IS Revision Window",q:"When does Islamic Studies revision begin?",bd:"#D97706",bg:"#FFFBEB",c:"#92400E"},
+  isexam:{ic:"🖊️",ti:"IS Written Exams",q:null,bd:"#2563EB",bg:"#EFF6FF",c:"#1E3A8A"},
+  hadith:{ic:"📕",ti:"Ḥadīth — Verbal Exam",q:"When is my child's Ḥadīth verbal exam?",bd:"#E11D48",bg:"#FFF1F2",c:"#9F1239"},
+  duas:{ic:"🤲",ti:"Duʿāʾ Memorisation",q:"When is my child's Duʿāʾ exam?",bd:"#1E40AF",bg:"#EFF6FF",c:"#1E3A8A"},
+  revday:{ic:"📚",ti:"Revision Days",q:"Which days are set aside for revision?",bd:"#6B7280",bg:"#F9FAFB",c:"#374151"},
+  jalsah:{ic:"🎓",ti:"Jalsah",q:"When is the prize-giving ceremony?",bd:"#7C3AED",bg:"#F5F3FF",c:"#5B21B6"},
+};
+const EXAM_TIME="4:55 PM";
+function buildCards(num,sgId){
+  const cards=[];
+  const qe=QURAN_SG[sgId];
+  if(qe){
+    cards.push({cat:"qrev",order:1,dates:[{date:`18/05 – ${qe.date}`,day:"Mon–"+qe.day,label:"Qurʾān revision period before your exam begins"}]});
+    cards.push({cat:"quran",order:2,dates:[{date:qe.date,day:qe.day,label:`${qe.subj} Exam`,note:`Exam at ${EXAM_TIME}`}]});
+  }
+  if(num===1)cards.push({cat:"qaidah",order:2,dates:[{date:"25/06",day:"Thu",label:"Qāʿidah Exam",note:`Exam at ${EXAM_TIME}`}]});
+  if(num===0)cards.push({cat:"qaidah",order:2,dates:[{date:"26/06",day:"Fri",label:"Qāʿidah Exam",note:`Exam at ${EXAM_TIME}. Please note: only for this day, Reception classes will end at 7:10 PM.`}]});
+  if(num>=1)cards.push({cat:"surah",order:3,dates:[{date:"19/06",day:"Fri",label:"Sūrah Memorisation Exam",note:`Exam at ${EXAM_TIME}`}]});
+  if(num>=1)cards.push({cat:"isrev",order:4,dates:[{date:"01/06 – 11/06",day:"Mon–Thu",label:"IS Revision Window",note:"Students revise IS subjects during this period. Qurʾān exams run alongside — see your Qurʾān exam date above."}]});
+  if(num>=1){
+    const exams=IS_EXAMS.filter(e=>{const[lo,hi]=e.range.split("–").map(Number);return num>=lo&&num<=hi;});
+    cards.push({cat:"isexam",order:5,subtitle:exams.map(e=>e.label).join(" · "),dates:exams.map(e=>({date:e.date,day:e.day,label:e.label,subj:e.subj,note:`Exam at ${EXAM_TIME}`}))});
+  }
+  if(num>=4)cards.push({cat:"hadith",order:6,dates:[{date:"24/06",day:"Wed",label:"Ḥadīth Memorisation / Verbal Exam",note:`Exam at ${EXAM_TIME}`}]});
+  if(num>=1)cards.push({cat:"duas",order:7,dates:[{date:"26/06",day:"Fri",label:"Duʿāʾ Memorisation Exam",note:`Exam at ${EXAM_TIME}`}]});
+  if(num>=1)cards.push({cat:"revday",order:8,dates:[
+    {date:"16/06",day:"Tue",label:"Revision Day"},
+    {date:"18/06",day:"Thu",label:"Revision Day"},
+    {date:"23/06",day:"Tue",label:"Revision Day"},
+  ]});
+  const isBoys=SUBGROUPS.find(s=>s.id===sgId)?.gender==="boys";
+  if(isBoys)cards.push({cat:"jalsah",order:9,dates:[{date:"29/06",day:"Mon",label:"Jalsah — Boys (Ustādhs / ML Classes)"}]});
+  else cards.push({cat:"jalsah",order:9,dates:[{date:"30/06",day:"Tue",label:"Jalsah — Girls (Āpās Classes)"}]});
+  cards.sort((a,b)=>a.order-b.order);
+  return cards;
+}
+function EventRow({ev,borderColor,bgColor,isLast,forPrint}){
+  const sc=ev.subj?SUBJ_COL[ev.subj]:null;
+  return(
+    <div style={{display:"flex",alignItems:"stretch",background:sc?sc.bg:bgColor||"#F8FAFB",borderRadius:forPrint?10:14,overflow:"hidden",marginBottom:isLast?0:forPrint?8:10,boxShadow:forPrint?"none":"0 1px 4px rgba(0,0,0,0.05)",border:forPrint?`1px solid ${(sc?.bd||borderColor)}44`:"none"}}>
+      <div style={{width:forPrint?6:5,flexShrink:0,background:sc?sc.bd:borderColor}}/>
+      <div style={{padding:forPrint?"14px 18px":"14px 16px",flex:1}}>
+        <div style={{fontWeight:900,fontSize:forPrint?16:14,color:"#1E293B",fontFamily:F,marginBottom:4}}>{ev.date?.includes("–")?ev.date:fmtDate(ev.date,ev.day)}</div>
+        <div style={{fontWeight:700,fontSize:forPrint?15:13,color:sc?sc.text:"#475569",fontFamily:F}}>{ev.label}</div>
+        {ev.note&&<div style={{fontSize:forPrint?13:12,color:"#6B7280",fontStyle:"italic",marginTop:5,fontFamily:F,lineHeight:1.4}}>{ev.note}</div>}
+      </div>
+    </div>
+  );
+}
+function CatCard({card}){
+  const[open,setOpen]=useState(false);
+  const m=CAT[card.cat];
+  if(!m||!card.dates?.length)return null;
+  const n=card.dates.length;
+  const isRevDay=card.cat==="revday";
+  return(
+    <div style={{borderRadius:14,overflow:"hidden",border:`1.5px solid ${m.bd}`,boxShadow:open?"0 4px 16px rgba(0,0,0,0.08)":"0 2px 8px rgba(0,0,0,0.04)",marginBottom:12,fontFamily:F}}>
+      <div onClick={()=>setOpen(o=>!o)} style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"14px 16px",background:m.bg,cursor:"pointer",userSelect:"none",gap:8}}>
+        <div style={{display:"flex",alignItems:"center",gap:10,flex:1,minWidth:0}}>
+          <span style={{fontSize:26,flexShrink:0,lineHeight:1}}>{m.ic}</span>
+          <div style={{minWidth:0}}>
+            <div style={{fontWeight:700,fontSize:15,color:m.c,lineHeight:1.25}}>{m.ti}</div>
+            {(card.subtitle||m.q)&&<div style={{fontSize:11,color:"#64748b",marginTop:2,fontStyle:"italic"}}>{card.subtitle||m.q}</div>}
+          </div>
+        </div>
+        <div style={{display:"flex",alignItems:"center",gap:6,flexShrink:0}}>
+          {n>1&&!open&&<span style={{fontSize:10,background:`${m.c}18`,color:m.c,borderRadius:10,padding:"2px 7px",fontWeight:700}}>{n} dates</span>}
+          <span style={{fontSize:15,color:m.c,fontWeight:700,transition:"transform 0.2s",transform:open?"rotate(180deg)":"rotate(0deg)"}}>▾</span>
+        </div>
+      </div>
+      {open&&(
+        <div style={{background:"white",borderTop:`1px solid ${m.bd}33`,padding:12}}>
+          {m.q&&<p style={{fontWeight:800,fontSize:14,color:"#1E293B",margin:"0 0 12px",fontFamily:F}}>{m.q}</p>}
+          {card.dates.map((ev,i)=><EventRow key={i} ev={ev} borderColor={m.bd} bgColor={m.bg} isLast={i===n-1}/>)}
+          {isRevDay&&<div style={{marginTop:10,padding:"10px 14px",background:"#FEF2F2",borderRadius:10,border:"1px solid #FCA5A5"}}><p style={{margin:0,fontSize:12,fontWeight:700,color:"#B91C1C",fontFamily:F,lineHeight:1.5}}>⚠️ Important: Students must still attend Madrasah on revision days. There are no days off.</p></div>}
+        </div>
+      )}
+    </div>
+  );
+}
+function ClassDetail({classIdx,sgLabel,sgId,onBack}){
+  const[tab,setTab]=useState("schedule");
+  const cards=useMemo(()=>buildCards(classIdx,sgId),[classIdx,sgId]);
+  const icon=CLASS_ICONS[classIdx];
+  const cnt=cards.reduce((s,c)=>s+c.dates.length,0);
+  const displayName=sgLabel||ALL_CLASSES[classIdx];
+  const tbtn=(id)=>({flex:1,padding:"11px 6px",border:"none",cursor:"pointer",background:tab===id?"white":"transparent",color:tab===id?"#065F46":"rgba(255,255,255,0.65)",fontWeight:800,fontSize:11,fontFamily:F,borderRadius:tab===id?"12px 12px 0 0":0,transition:"all 0.15s",display:"flex",alignItems:"center",justifyContent:"center",gap:4});
+  return(
+    <div>
+      <div className="no-print" style={{background:"linear-gradient(135deg,#065F46 0%,#0E7490 100%)",padding:"16px 18px 0",color:"white"}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
+          <button onClick={onBack} style={{background:"rgba(255,255,255,0.15)",border:"none",color:"white",padding:"8px 16px",borderRadius:12,fontSize:14,fontWeight:700,cursor:"pointer",fontFamily:F}}>← Back</button>
+          <span style={{background:"rgba(255,255,255,0.2)",padding:"6px 14px",borderRadius:20,fontSize:13,fontWeight:700,fontFamily:F}}>{cnt} events</span>
+        </div>
+        <div style={{display:"flex",alignItems:"center",gap:16,paddingBottom:16}}>
+          <span style={{fontSize:48}}>{icon}</span>
+          <div>
+            <h2 style={{margin:0,fontSize:24,fontWeight:900,letterSpacing:0.3,fontFamily:F}}>{displayName}</h2>
+            <p style={{margin:"4px 0 0",fontSize:13,opacity:0.75,fontWeight:500,fontFamily:F}}>End of Year Exams · June 2026</p>
+          </div>
+        </div>
+        <div style={{display:"flex",gap:2}}>
+          {[["schedule","📋 Schedule"],["overview","📊 Overview"]].map(([id,lb])=>(
+            <button key={id} style={tbtn(id)} onClick={()=>setTab(id)}>{lb}</button>
+          ))}
+        </div>
+      </div>
+      {tab==="schedule"&&(
+        <div style={{padding:"16px 14px 24px"}}>
+          <p style={{textAlign:"center",fontSize:14,color:"#94A3B8",fontWeight:500,margin:"0 0 16px",fontStyle:"italic",fontFamily:F}}>Tap a card to see your exam details</p>
+          {cards.map((card,i)=><CatCard key={i} card={card}/>)}
+        </div>
+      )}
+      {tab==="overview"&&<OverviewTable/>}
+      <div style={{padding:"10px 16px",background:"#F8FAFC",borderTop:"1px solid #E2E8F0",textAlign:"center",fontSize:11,color:"#94A3B8",fontWeight:600,fontFamily:F}}>Madrasah EOY Exams · June 2026</div>
+    </div>
+  );
+}
+function OverviewTable(){
+  const hdrBg="#1E3A5F";
+  const pBg={qrev:"#854D0E",p1:"#065F46",surah:"#4C1D95",is:"#0F2D52",jalsah:"#4C1D95"};
+  let alt=false;
+  const a=()=>{alt=!alt;return !alt;};
+  const Row=({date,cls,subj,grey})=>(
+    <tr style={{background:a()?"#EBF5FB":"white",borderBottom:"1px solid #E2E8F0"}}>
+      <td style={{padding:"10px 14px",fontWeight:800,fontSize:13,color:"#1A237E",textAlign:"center",fontFamily:F,whiteSpace:"pre-line"}}>{date}</td>
+      <td style={{padding:"10px 14px",fontWeight:700,fontSize:13,color:grey?"#B71C1C":"#1B5E20",textAlign:"center",fontFamily:F,whiteSpace:"pre-line"}}>{cls}</td>
+      <td style={{padding:"10px 14px",fontWeight:800,fontSize:14,color:grey?"#64748B":"#0D47A1",textAlign:"center",fontFamily:F}}>{subj}</td>
+    </tr>
+  );
+  const Sec=({title,bg,children})=>(<><tr><td colSpan={3} style={{background:bg,color:"white",padding:"10px 16px",fontSize:13,fontWeight:800,textTransform:"uppercase",letterSpacing:1,fontFamily:F,textAlign:"center"}}>{title}</td></tr>{children}</>);
+  return(
+    <div style={{padding:"0 8px 16px"}}>
+      <div style={{padding:"16px",textAlign:"center"}}>
+        <div style={{fontSize:17,fontWeight:900,color:"#0F2D52",fontFamily:F}}>📊 Full Schedule Overview</div>
+        <div style={{fontSize:12,color:"#94A3B8",marginTop:4,fontFamily:F}}>Office reference · June 2026</div>
+      </div>
+      <div style={{overflowX:"auto"}}>
+        <table style={{width:"100%",borderCollapse:"collapse",fontFamily:F,border:"1px solid #B0BEC5"}}>
+          <thead><tr>{["DATE","CLASS","SUBJECT"].map(h=>(<th key={h} style={{background:hdrBg,color:"white",padding:"12px 14px",fontSize:13,fontWeight:800,textTransform:"uppercase",letterSpacing:1,textAlign:"center",fontFamily:F,border:"1px solid #B0BEC5"}}>{h}</th>))}</tr></thead>
+          <tbody>
+            <Sec title="QUR'AN REVISION WINDOW (FROM 18 MAY)" bg={pBg.qrev}/>
+            <Sec title="ISLAMIC STUDIES REVISION WINDOW (FROM 1 JUNE)" bg={pBg.qrev}/>
+            <Sec title="QUR'AN / JUZ 'AMMA EXAMS" bg={pBg.p1}>
+              <Row date={"MONDAY\n1st JUNE"} cls={"Class 2 (Boys) &\nClass 2 Girls"} subj="JUZ 'AMMA"/>
+              <Row date={"TUESDAY\n2nd JUNE"} cls={"Class 2 (Boys Āpā) &\nClass 3 Girls"} subj="JUZ 'AMMA / QUR'AN"/>
+              <Row date={"WEDNESDAY\n3rd JUNE"} cls={"Class 3 (Boys) &\nClass 4A Girls"} subj="QUR'AN"/>
+              <Row date={"THURSDAY\n4th JUNE"} cls={"Class 4 (Boys) &\nClass 4B Girls"} subj="QUR'AN"/>
+              <Row date={"FRIDAY\n5th JUNE"} cls={"Class 5\n(Boys & Girls)"} subj="QUR'AN"/>
+              <Row date={"MONDAY\n8th JUNE"} cls={"Class 6\n(Boys & Girls)"} subj="QUR'AN"/>
+              <Row date={"TUESDAY\n9th JUNE"} cls={"Class 7 Boys\nClass 7A Girls"} subj="QUR'AN"/>
+              <Row date={"WEDNESDAY\n10th JUNE"} cls={"Class 8 Boys\nClass 7B Girls"} subj="QUR'AN"/>
+              <Row date={"THURSDAY\n11th JUNE"} cls="Class 8 Girls" subj="QUR'AN"/>
+            </Sec>
+            <Sec title="SURAH MEMORISATION" bg={pBg.surah}><Row date={"FRIDAY\n19th JUNE"} cls="CLASS 1 TO CLASS 8" subj="SURAH MEMORISATION"/></Sec>
+            <Sec title="QAIDAH EXAMS" bg={pBg.p1}>
+              <Row date={"THURSDAY\n25th JUNE"} cls={"CLASS 1\n(BOYS & GIRLS)"} subj="QAIDAH"/>
+              <Row date={"FRIDAY\n26th JUNE"} cls={"RECEPTION\n(BOYS & GIRLS)"} subj="QAIDAH"/>
+            </Sec>
+            <Sec title="ISLAMIC STUDIES WRITTEN EXAMS" bg={pBg.is}>
+              <Row date={"FRIDAY\n12th JUNE"} cls="CLASS 4 TO CLASS 8" subj="SEERAH"/>
+              <Row date={"FRIDAY\n12th JUNE"} cls="CLASS 1 TO CLASS 3" subj="ISLAMIC HISTORY"/>
+              <Row date={"MONDAY\n15th JUNE"} cls="CLASS 1 TO CLASS 8" subj="FIQH"/>
+              <Row date={"TUESDAY\n16th JUNE"} cls="CLASS 1 TO CLASS 8" subj="REVISION DAY" grey/>
+              <Row date={"WEDNESDAY\n17th JUNE"} cls="CLASS 4 TO CLASS 8" subj="ADAB"/>
+              <Row date={"WEDNESDAY\n17th JUNE"} cls="CLASS 1 TO CLASS 3" subj="AKHLAQ"/>
+              <Row date={"THURSDAY\n18th JUNE"} cls="CLASS 1 TO CLASS 8" subj="REVISION DAY" grey/>
+              <Row date={"MONDAY\n22nd JUNE"} cls="CLASS 1 TO CLASS 8" subj="AQAID"/>
+              <Row date={"TUESDAY\n23rd JUNE"} cls="CLASS 1 TO CLASS 8" subj="REVISION DAY" grey/>
+              <Row date={"WEDNESDAY\n24th JUNE"} cls="CLASS 4 TO CLASS 8" subj="HADITH MEM. / VERBAL"/>
+              <Row date={"FRIDAY\n26th JUNE"} cls="CLASS 1 TO CLASS 8" subj="DU'A MEMORISATION"/>
+            </Sec>
+            <Sec title="JALSAH — PRIZE / GRADUATION" bg={pBg.jalsah}>
+              <Row date={"MONDAY\n29th JUNE"} cls="USTĀDHS/ML CLASSES" subj="JALSAH — BOYS"/>
+              <Row date={"TUESDAY\n30th JUNE"} cls="ĀPĀS CLASSES" subj="JALSAH — GIRLS"/>
+            </Sec>
+          </tbody>
+        </table>
+        <p style={{textAlign:"center",margin:"14px 0 0",fontSize:12,fontWeight:700,color:"#C62828",fontFamily:F}}>STUDENTS WHO DO NOT HAVE EXAMS ON ANY DAY WILL STILL ATTEND MADRASAH FOR CLASS (INCLUDING REVISION DAYS)</p>
+      </div>
+    </div>
+  );
+}
+function ClassSelector({onSelect}){
+  const[exp,setExp]=useState(null);
+  return(
+    <div>
+      <div style={{background:"linear-gradient(135deg,#065F46 0%,#0E7490 100%)",padding:"30px 20px",color:"white",textAlign:"center"}}>
+        <h1 style={{fontSize:21,fontWeight:900,textTransform:"uppercase",letterSpacing:1.5,margin:0,fontFamily:F}}>📚 Madrasah Exam Timetable</h1>
+        <p style={{marginTop:6,fontSize:14,opacity:0.75,fontWeight:500,fontFamily:F}}>End of Year Examinations · June 2026</p>
+      </div>
+      <div style={{padding:"24px 16px 32px"}}>
+        <p style={{fontSize:20,fontWeight:800,color:"#1E293B",margin:"0 0 4px",fontFamily:F,textAlign:"center"}}>Assalāmu ʿAlaykum Parents!</p>
+        <p style={{fontSize:14,color:"#64748B",margin:"0 0 22px",fontFamily:F,textAlign:"center"}}>Select your child's class, then choose their group</p>
+        <div style={{display:"flex",flexDirection:"column",gap:10}}>
+          {ALL_CLASSES.map((cls,i)=>{
+            const subs=SG_BY_CLASS[i];const isOpen=exp===i;
+            return(
+              <div key={i} style={{borderRadius:16,border:`2px solid ${isOpen?"#0E7490":"#E2E8F0"}`,overflow:"hidden",boxShadow:isOpen?"0 4px 20px rgba(14,116,144,0.12)":"0 1px 4px rgba(0,0,0,0.04)",transition:"all 0.18s"}}>
+                <button onClick={()=>setExp(isOpen?null:i)} style={{width:"100%",display:"flex",alignItems:"center",gap:14,padding:"14px 18px",border:"none",cursor:"pointer",background:isOpen?"#F0FDFA":"white",transition:"background 0.15s",fontFamily:F}}>
+                  <span style={{fontSize:30}}>{CLASS_ICONS[i]}</span>
+                  <span style={{flex:1,fontWeight:800,fontSize:16,color:"#0F2D52",textAlign:"left",fontFamily:F}}>{cls}</span>
+                  <span style={{fontSize:12,color:"#94A3B8",fontWeight:600,fontFamily:F}}>{subs.length} groups</span>
+                  <span style={{fontSize:14,color:"#0E7490",fontWeight:900,transform:isOpen?"rotate(180deg)":"rotate(0)",transition:"transform 0.2s"}}>▾</span>
+                </button>
+                {isOpen&&(
+                  <div style={{borderTop:"1.5px solid #E2E8F0",background:"#F8FAFC",padding:"10px 12px",display:"flex",flexWrap:"wrap",gap:8}}>
+                    {subs.map(sg=>(
+                      <button key={sg.id} onClick={()=>onSelect(sg.classIdx,sg.label,sg.id)}
+                        style={{padding:"9px 16px",borderRadius:12,border:`2px solid ${sg.gender==="girls"?"#FBCFE8":"#BAE6FD"}`,background:"white",cursor:"pointer",fontFamily:F,fontWeight:700,fontSize:13,color:sg.gender==="girls"?"#BE185D":"#0E7490"}}
+                      >{sg.label}</button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+function App(){
+  const[view,setView]=useState("home");
+  const[classIdx,setClassIdx]=useState(null);
+  const[sgLabel,setSgLabel]=useState(null);
+  const[sgId,setSgId]=useState(null);
+  return(
+    <div style={{maxWidth:640,margin:"0 auto",background:"white",borderRadius:20,boxShadow:"0 8px 40px rgba(0,0,0,0.1)",overflow:"hidden"}}>
+      {view==="home"&&<ClassSelector onSelect={(i,lbl,id)=>{setClassIdx(i);setSgLabel(lbl);setSgId(id);setView("class");}}/>}
+      {view==="class"&&classIdx!==null&&<ClassDetail classIdx={classIdx} sgLabel={sgLabel} sgId={sgId} onBack={()=>{setView("home");setClassIdx(null);setSgLabel(null);setSgId(null);}}/>}
+    </div>
+  );
+}
+ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+</script>
+</body>
+</html>
