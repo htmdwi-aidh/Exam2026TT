@@ -193,10 +193,21 @@ function ClassDetail({classIdx,sgLabel,sgId,onBack}){
   const icon=CLASS_ICONS[classIdx];
   const cnt=cards.reduce((s,c)=>s+c.dates.length,0);
   const displayName=sgLabel||ALL_CLASSES[classIdx];
+  const printRef=useRef(null);
+  const handlePrint=()=>setTimeout(()=>window.print(),50);
+  const handleDownload=()=>{
+    const el=printRef.current;if(!el)return;
+    const html=`<!DOCTYPE html><html><head><meta charset="utf-8"><title>${displayName} — Exam Timetable</title><link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&display=swap" rel="stylesheet"><style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:${F};padding:24px 28px;color:#1E293B;background:white}@media print{@page{size:A4 portrait;margin:10mm 14mm}body{padding:0}}</style></head><body>${el.innerHTML}</body></html>`;
+    const blob=new Blob([html],{type:"text/html;charset=utf-8"});
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement("a");a.href=url;a.download=`${displayName.replace(/\s+/g,"-")}-Exam-Timetable.html`;a.style.display="none";
+    document.body.appendChild(a);a.click();
+    setTimeout(()=>{if(a.parentNode)a.parentNode.removeChild(a);URL.revokeObjectURL(url);},1500);
+  };
   const tbtn=(id)=>({flex:1,padding:"11px 6px",border:"none",cursor:"pointer",background:tab===id?"white":"transparent",color:tab===id?"#065F46":"rgba(255,255,255,0.65)",fontWeight:800,fontSize:11,fontFamily:F,borderRadius:tab===id?"12px 12px 0 0":0,transition:"all 0.15s",display:"flex",alignItems:"center",justifyContent:"center",gap:4});
   return(
     <div>
-      <div className="no-print" style={{background:"linear-gradient(135deg,#065F46 0%,#0E7490 100%)",padding:"16px 18px 0",color:"white"}}>
+      <div style={{background:"linear-gradient(135deg,#065F46 0%,#0E7490 100%)",padding:"16px 18px 0",color:"white"}}>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
           <button onClick={onBack} style={{background:"rgba(255,255,255,0.15)",border:"none",color:"white",padding:"8px 16px",borderRadius:12,fontSize:14,fontWeight:700,cursor:"pointer",fontFamily:F}}>← Back</button>
           <span style={{background:"rgba(255,255,255,0.2)",padding:"6px 14px",borderRadius:20,fontSize:13,fontWeight:700,fontFamily:F}}>{cnt} events</span>
@@ -209,7 +220,7 @@ function ClassDetail({classIdx,sgLabel,sgId,onBack}){
           </div>
         </div>
         <div style={{display:"flex",gap:2}}>
-          {[["schedule","📋 Schedule"],["overview","📊 Overview"]].map(([id,lb])=>(
+          {[["schedule","📋 Schedule"],["print","🖨️ Print"],["overview","📊 Overview"]].map(([id,lb])=>(
             <button key={id} style={tbtn(id)} onClick={()=>setTab(id)}>{lb}</button>
           ))}
         </div>
@@ -218,6 +229,38 @@ function ClassDetail({classIdx,sgLabel,sgId,onBack}){
         <div style={{padding:"16px 14px 24px"}}>
           <p style={{textAlign:"center",fontSize:14,color:"#94A3B8",fontWeight:500,margin:"0 0 16px",fontStyle:"italic",fontFamily:F}}>Tap a card to see your exam details</p>
           {cards.map((card,i)=><CatCard key={i} card={card}/>)}
+        </div>
+      )}
+      {tab==="print"&&(
+        <div>
+          <div style={{padding:"12px 14px 0",display:"flex",justifyContent:"flex-end",gap:8,flexWrap:"wrap"}}>
+            <button onClick={handlePrint} style={{background:"#0F2D52",color:"white",border:"none",borderRadius:10,padding:"10px 18px",fontSize:13,fontWeight:700,cursor:"pointer",fontFamily:F}}>🖨️ Print / Save PDF</button>
+            <button onClick={handleDownload} style={{background:"white",color:"#0F2D52",border:"2px solid #0F2D52",borderRadius:10,padding:"8px 16px",fontSize:13,fontWeight:700,cursor:"pointer",fontFamily:F}}>⬇️ Download HTML</button>
+          </div>
+          <p style={{fontSize:12,color:"#64748B",margin:"4px 14px 0",fontFamily:F,fontStyle:"italic",textAlign:"right"}}>Print directly or download to open in your browser.</p>
+          <div ref={printRef} style={{padding:"20px 18px 30px"}}>
+            <div style={{textAlign:"center",marginBottom:24,borderBottom:"3px solid #0F2D52",paddingBottom:16}}>
+              <div style={{fontSize:26,fontWeight:900,color:"#0F2D52",fontFamily:F,textTransform:"uppercase",letterSpacing:1}}>📚 {displayName}</div>
+              <div style={{fontSize:17,fontWeight:800,color:"#0F2D52",fontFamily:F,marginTop:4}}>Exam Timetable — June 2026</div>
+            </div>
+            {cards.map((card,ci)=>{
+              const m=CAT[card.cat];if(!m)return null;
+              const isRevDay=card.cat==="revday";
+              return(
+                <div key={ci} style={{marginBottom:20}}>
+                  <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:10,borderBottom:`2.5px solid ${m.bd}`,paddingBottom:6}}>
+                    <span style={{fontSize:22}}>{m.ic}</span>
+                    <div style={{fontSize:17,fontWeight:900,color:m.c,fontFamily:F,textTransform:"uppercase",letterSpacing:0.5}}>{m.ti}</div>
+                  </div>
+                  {card.dates.map((ev,i)=><EventRow key={i} ev={ev} borderColor={m.bd} bgColor={m.bg} isLast={i===card.dates.length-1&&!isRevDay} forPrint/>)}
+                  {isRevDay&&<div style={{marginTop:8,padding:"10px 16px",background:"#FEF2F2",borderRadius:8,border:"1.5px solid #FCA5A5"}}><div style={{fontSize:14,fontWeight:800,color:"#B91C1C",fontFamily:F,lineHeight:1.5}}>⚠️ Important: Students must still attend Madrasah on revision days. There are no days off.</div></div>}
+                </div>
+              );
+            })}
+            <div style={{marginTop:20,padding:"14px 18px",background:"#FEF2F2",borderRadius:10,border:"2px solid #FCA5A5"}}>
+              <div style={{fontSize:14,fontWeight:900,color:"#B91C1C",fontFamily:F,textAlign:"center",lineHeight:1.5}}>⚠️ STUDENTS WHO DO NOT HAVE EXAMS ON ANY DAY WILL STILL ATTEND MADRASAH FOR CLASS (INCLUDING REVISION DAYS)</div>
+            </div>
+          </div>
         </div>
       )}
       {tab==="overview"&&<OverviewTable/>}
